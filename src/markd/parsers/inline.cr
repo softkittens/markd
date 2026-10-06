@@ -11,6 +11,10 @@ module Markd::Parser
     @delimiters : Delimiter?
     @has_at = false
 
+    # Where the last link ended: a link opener before it is inactive, as
+    # links do not nest.
+    @link_end = 0
+
     # Where each run of backticks in the text starts, by its length.
     @tick_runs = {} of Int32 => Array(Int32)
 
@@ -23,6 +27,7 @@ module Markd::Parser
     def parse(node : Node)
       @pos = 0
       @delimiters = nil
+      @link_end = 0
       @text = node.text.strip
       @tick_runs = tick_runs
       @has_at = @options.autolink? && @text.includes?('@')
@@ -224,7 +229,7 @@ module Markd::Parser
 
     private def add_bracket(node : Node, index : Int32, image = false)
       brackets.bracket_after = true if brackets?
-      @brackets = Bracket.new(node, @brackets, @delimiters, index, image, true)
+      @brackets = Bracket.new(node, @brackets, @delimiters, index, image)
     end
 
     private def remove_bracket
@@ -258,7 +263,7 @@ module Markd::Parser
         return true
       end
 
-      unless opener.active?
+      unless opener.image? || opener.index >= @link_end
         # no matched opener, just return a literal
         node.append_child(text("]"))
         # take opener off brackets stack
@@ -332,13 +337,7 @@ module Markd::Parser
         remove_bracket
         opener.node.unlink
 
-        unless is_image
-          opener = @brackets
-          while opener
-            opener.active = false unless opener.image?
-            opener = opener.previous?
-          end
-        end
+        @link_end = @pos unless is_image
       else
         remove_bracket
         @pos = start_pos
@@ -1163,10 +1162,9 @@ module Markd::Parser
       property previous_delimiter : Delimiter?
       property index : Int32
       property? image : Bool
-      property? active : Bool
       property? bracket_after : Bool
 
-      def initialize(@node, @previous, @previous_delimiter, @index, @image, @active = true)
+      def initialize(@node, @previous, @previous_delimiter, @index, @image)
         @bracket_after = false
       end
     end
