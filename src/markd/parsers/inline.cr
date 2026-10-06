@@ -11,6 +11,10 @@ module Markd::Parser
     @delimiters : Delimiter?
     @has_at = false
 
+    # Where each closer of HTML that runs to it was found from the last
+    # search, or -1 when it is not in the rest of the text.
+    @closers = {} of String => Int32
+
     # Where the last link ended: a link opener before it is inactive, as
     # links do not nest.
     @link_end = 0
@@ -28,6 +32,7 @@ module Markd::Parser
       @pos = 0
       @delimiters = nil
       @link_end = 0
+      @closers.clear
       @text = node.text.strip
       @tick_runs = tick_runs
       @has_at = @options.autolink? && @text.includes?('@')
@@ -453,18 +458,16 @@ module Markd::Parser
                 closer = closer.next?
               end
             end
-          when '\''
-            closer.node.text = "\u{2019}"
-            if opener
-              opener.node.text = "\u{2018}"
-            end
+          when '\'', '"'
+            closer.node.text = closer_char == '"' ? "\u{201D}" : "\u{2019}"
             closer = closer.next?
-          when '"'
-            closer.node.text = "\u{201D}"
             if opener
-              opener.node.text = "\u{201C}"
+              opener.node.text = closer_char == '"' ? "\u{201C}" : "\u{2018}"
+              # Both are used, as cmark has it: left on the stack, every
+              # later quote looked back past them.
+              remove_delimiter(opener)
+              remove_delimiter(old_closer)
             end
-            closer = closer.next?
           end
 
           unless opener_found
@@ -536,6 +539,13 @@ module Markd::Parser
     end
 
     private def html_tag(node : Node)
+      # A comment, processing instruction, CDATA section or declaration
+      # reads to its closer, to the end of the text when there is none: once
+      # that is known, none is tried again, as cmark does.
+      if (closer = html_closer) && !closer_after?(closer)
+        return false
+      end
+
       if (text = match(Rule::HTML_TAG))
         child = Node.new(Node::Type::HTMLInline)
 
@@ -549,6 +559,28 @@ module Markd::Parser
       else
         false
       end
+    end
+
+    private def html_closer : String?
+      if starts_at?(@pos, "<!--")
+        "-->"
+      elsif starts_at?(@pos, "<?")
+        "?>"
+      elsif starts_at?(@pos, "<![CDATA[")
+        "]]>"
+      elsif starts_at?(@pos, "<!")
+        ">"
+      end
+    end
+
+    # Whether `closer` is in the text after the position, which only moves
+    # forward between the calls of one text.
+    private def closer_after?(closer : String) : Bool
+      at = @closers[closer]?
+      if at.nil? || (at >= 0 && at < @pos)
+        at = @closers[closer] = @text.byte_index(closer, @pos) || -1
+      end
+      at >= 0
     end
 
     private def entity(node : Node)
