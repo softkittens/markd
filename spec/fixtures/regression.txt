@@ -329,3 +329,16 @@ A `-` list item ends a table, as `*` and `+` items do.
 <li>c</li>
 </ul>
 ````````````````````````````````
+
+A task list item's box is followed by a space, a tab or the end of the
+line.
+
+```````````````````````````````` example gfm
+- [x]a
+- [ ]ć
+.
+<ul>
+<li>[x]a</li>
+<li>[ ]ć</li>
+</ul>
+````````````````````````````````

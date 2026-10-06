@@ -83,13 +83,15 @@ module Markd::Rule
       marker = parser.char_at?(start)
 
       if BULLET_LIST_MARKERS.includes?(marker)
-        # A task list item's box, after the marker and spaces.
+        # A task list item's box, after the marker and spaces, and before a
+        # space, a tab or the end of the line.
         box = start + 1
         while parser.char_at?(box).try(&.ascii_whitespace?)
           box += 1
         end
         checked = parser.line.byte_slice?(box, 3).try { |text| {"[ ]" => false, "[x]" => true}[text]? }
-        if parser.gfm? && !checked.nil?
+        after_box = parser.char_at?(box + 3)
+        if parser.gfm? && !checked.nil? && (after_box.nil? || space_or_tab?(after_box))
           data["type"] = "checkbox"
           data["checked"] = checked
           padding_checkbox = box + 2 - start
