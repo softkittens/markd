@@ -45,20 +45,11 @@ module Markd::Rule
       true
     end
 
+    DISALLOWED_HTML_TAG = /<(?=\/?\s*(?:#{GFM_DISALLOWED_HTML_TAGS.join('|')})\b)/i
+
+    # `text` with the `<` of each tag GFM's tagfilter disallows as `&lt;`.
     def self.escape_disallowed_html(text : String) : String
-      String.build do |string|
-        pos = 0
-
-        text.scan(/<\/?\s*(#{GFM_DISALLOWED_HTML_TAGS.join('|')})\b/i) do |match|
-          start = text.index(match[0], pos)
-          next if start.nil?
-
-          string << text[pos...start] << "&lt;#{match[0][1..]}"
-          pos = start + match[0].size
-        end
-
-        string << text[pos..-1]
-      end
+      text.gsub(DISALLOWED_HTML_TAG, "&lt;")
     end
   end
 end
