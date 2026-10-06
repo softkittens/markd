@@ -1135,11 +1135,19 @@ module Markd::Parser
       else
         uri = URI.parse(text)
       end
-      if uri.host && !uri.host.to_s.match(Rule::VALID_DOMAIN_NAME)
+      if (host = uri.host) && !valid_domain?(host)
         text = ""
       end
 
       text
+    end
+
+    # Segments read one at a time: as one pattern, a segment either class
+    # could hold backtracked past PCRE2's match limit on a long host.
+    private def valid_domain?(host : String) : Bool
+      segments = host.split('.')
+      segments.size >= 2 && segments.all?(&.matches?(Rule::DOMAIN_SEGMENT)) &&
+        segments.last(2).none?(&.includes?('_'))
     end
 
     # This is the same as match(/^[^\n`\[\]\\!<&*_'":]+/m) but done manually (faster)

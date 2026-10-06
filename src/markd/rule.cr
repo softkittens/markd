@@ -66,15 +66,14 @@ module Markd
     # underscores may be present in the last two segments of the domain.
     #
     # Alphanumeric characters in this context include emojis.
-    LAST_DOMAIN_SEGMENT   = /(?:[a-zA-Z0-9\-\p{Emoji_Presentation}\-]+)/
     OTHER_DOMAIN_SEGMENTS = /(?:[a-zA-Z0-9\p{Emoji_Presentation}\-_]+)/
     # The spec wants to capture greedily, even invalid domain names and then
     # reject the invalid ones later.
     # For example: www.xxx._yyy.zzz is never linked because of the
     # _ in the last segment.
-    DOMAIN_NAME       = /(?:#{OTHER_DOMAIN_SEGMENTS}\.)*#{OTHER_DOMAIN_SEGMENTS}/
-    VALID_DOMAIN_NAME = /^(?:#{OTHER_DOMAIN_SEGMENTS}\.)*(?:#{LAST_DOMAIN_SEGMENT}\.)+#{LAST_DOMAIN_SEGMENT}$/
-    VALID_URL_PATH    = /(?:\/[^\s<]*)?/
+    DOMAIN_NAME    = /(?:#{OTHER_DOMAIN_SEGMENTS}\.)*#{OTHER_DOMAIN_SEGMENTS}/
+    DOMAIN_SEGMENT = /\A#{OTHER_DOMAIN_SEGMENTS}\z/
+    VALID_URL_PATH = /(?:\/[^\s<]*)?/
 
     AUTOLINK_PROTOCOLS = /(?:http|https|ftp):\/\//
 
