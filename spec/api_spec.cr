@@ -19,3 +19,12 @@ describe Markd::Options do
     end
   end
 end
+
+describe Markd::Options do
+  describe "#toc" do
+    it "writes no anchor for an empty heading" do
+      Markd.to_html("#\n# a", Markd::Options.new(toc: true))
+        .should eq(%(<h1></h1>\n<h1><a id="anchor-a" class="anchor" href="#anchor-a"></a>a</h1>\n))
+    end
+  end
+end

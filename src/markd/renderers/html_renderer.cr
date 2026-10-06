@@ -327,13 +327,13 @@ module Markd
     end
 
     private def toc(node : Node)
-      return unless node.type.heading?
+      return unless node.type.heading? && (first_child = node.first_child?)
 
       {% if compare_versions(Crystal::VERSION, "1.2.0") < 0 %}
-        title = URI.encode(node.first_child.text)
+        title = URI.encode(first_child.text)
         @output_io << %(<a id="anchor-) << title << %(" class="anchor" href="#anchor-) << title << %("></a>)
       {% else %}
-        title = URI.encode_path(node.first_child.text)
+        title = URI.encode_path(first_child.text)
         @output_io << %(<a id="anchor-) << title << %(" class="anchor" href="#anchor-) << title << %("></a>)
       {% end %}
       @last_output = ">"
