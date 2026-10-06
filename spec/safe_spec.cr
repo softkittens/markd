@@ -16,3 +16,12 @@ describe "safe: true" do
     safe("![<b>a</b>](/i.png)").should eq(%(<p><img src="/i.png" alt="&lt;b&gt;a&lt;/b&gt;" /></p>\n))
   end
 end
+
+describe "safe: true destinations" do
+  it "drops a javascript:, vbscript:, file: or non-image data: destination, and keeps one that only contains them" do
+    safe("[a](JavaScript:x) [b](vbscript:x) [c](file:///x) [d](data:text/html,x) [e](data:image/png;base64,x)")
+      .should eq(%(<p><a>a</a> <a>b</a> <a>c</a> <a>d</a> <a href="data:image/png;base64,x">e</a></p>\n))
+    safe("[a](https://x.test/?to=vbscript:x) [b](/data:x)")
+      .should eq(%(<p><a href="https://x.test/?to=vbscript:x">a</a> <a href="/data:x">b</a></p>\n))
+  end
+end
