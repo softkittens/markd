@@ -813,7 +813,7 @@ module Markd::Parser
       # Match ASCII code 160 => \xA0 (See http://www.adamkoch.com/2009/07/25/white-space-and-character-160/)
       after_is_whitespace = char_after.ascii_whitespace? || char_after == '\u00A0'
       after_is_punctuation = !!char_after.to_s.match(Rule::PUNCTUATION)
-      before_is_whitespace = char_before.ascii_whitespace? || char_after == '\u00A0'
+      before_is_whitespace = char_before.ascii_whitespace? || char_before == '\u00A0'
       before_is_punctuation = !!char_before.to_s.match(Rule::PUNCTUATION)
 
       left_flanking = !after_is_whitespace &&
