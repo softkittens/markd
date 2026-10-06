@@ -378,7 +378,11 @@ module Markd::Parser
           end
 
           # found emphasis closer. now look back for first matching opener:
-          bottom_key = closer_char.in?('*', '_') ? {closer_char, closer.can_open?, closer.orig_delims % 3} : {closer_char, false, 0}
+          bottom_key = case closer_char
+                       when '*', '_' then {closer_char, closer.can_open?, closer.orig_delims % 3}
+                       when '~'      then {closer_char, false, closer.orig_delims}
+                       else               {closer_char, false, 0}
+                       end
           bottom = openers_bottom.fetch(bottom_key, delimiter)
           opener = closer.previous?
           opener_found = false
@@ -386,7 +390,9 @@ module Markd::Parser
             odd_match = (closer.can_open? || opener.can_close?) &&
                         closer.orig_delims % 3 != 0 &&
                         (opener.orig_delims + closer.orig_delims) % 3 == 0
-            if opener.char == closer.char && opener.can_open? && !odd_match
+            # Strikethrough takes `~` or `~~` on both sides.
+            if opener.char == closer.char && opener.can_open? && !odd_match &&
+               (closer_char != '~' || opener.num_delims == closer.num_delims)
               opener_found = true
               break
             end
@@ -402,15 +408,6 @@ module Markd::Parser
               if opener
                 # calculate actual number of delimiters used from closer
                 use_delims = (closer.num_delims >= 2 && opener.num_delims >= 2) ? 2 : 1
-
-                if closer_char == '~' && (
-                     closer.num_delims > 2 ||
-                     opener.num_delims > 2 ||
-                     closer.num_delims != opener.num_delims
-                   )
-                  closer = closer.next?
-                  next
-                end
 
                 opener_inl = opener.node
                 closer_inl = closer.node
@@ -779,6 +776,13 @@ module Markd::Parser
 
       num_delims = res[:num_delims]
       start_pos = @pos
+      # A run of three or more `~` strikes nothing through: text.
+      if char == '~' && num_delims > 2
+        @pos += num_delims
+        node.append_child(text(@text.byte_slice(start_pos, num_delims)))
+        return true
+      end
+
       @pos += num_delims
       text = case char
              when '\''
