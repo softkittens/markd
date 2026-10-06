@@ -9,11 +9,25 @@ module Markd
 
     HEADINGS = %w[h1 h2 h3 h4 h5 h6]
 
+    record Heading, level : Int32, id : String, text : String
+
+    # The headings rendered with `heading_ids`, in order.
+    getter headings = [] of Heading
+    @heading_ids_taken = Set(String).new
+
     def heading(node : Node, entering : Bool) : Nil
-      tag_name = HEADINGS[node.data["level"].as(Int32) - 1]
+      level = node.data["level"].as(Int32)
+      tag_name = HEADINGS[level - 1]
       if entering
         newline
-        tag(tag_name, attrs(node))
+        attrs = attrs(node)
+        if @options.heading_ids?
+          text = plain_text(node)
+          id = unique_heading_id(heading_id(text))
+          @headings << Heading.new(level, id, text)
+          attrs = {"id" => escape(id)}.merge(attrs || {} of String => String)
+        end
+        tag(tag_name, attrs)
         toc(node) if @options.toc?
       else
         tag(tag_name, end_tag: true)
@@ -299,6 +313,42 @@ module Markd
 
     def text(node : Node, entering : Bool) : Nil
       output(node.text)
+    end
+
+    # The id a heading's text makes, as GitHub makes it: lower case, without
+    # punctuation but `-` and `_`, a space as `-`. Override it for another.
+    def heading_id(text : String) : String
+      text.downcase.gsub(/[^\p{L}\p{M}\p{N}\p{Pc} -]/, "").tr(" ", "-")
+    end
+
+    # `id`, or with `-1`, `-2` and on after it when a heading before has it.
+    private def unique_heading_id(id : String) : String
+      taken = @heading_ids_taken
+      unique = id
+      n = 0
+      while unique.empty? || taken.includes?(unique)
+        n += 1
+        unique = id.empty? ? "heading-#{n}" : "#{id}-#{n}"
+      end
+      taken << unique
+      unique
+    end
+
+    # A node's text, as a heading's id and title read it: code spans' and
+    # alt text included, raw HTML left out, each line break a space.
+    private def plain_text(node : Node) : String
+      text = String.build do |io|
+        walker = node.walker
+        while (event = walker.next)
+          child, entering = event
+          next unless entering
+          case child.type
+          when .text?, .code?             then io << child.text
+          when .soft_break?, .line_break? then io << ' '
+          end
+        end
+      end
+      text.gsub(/\s+/, " ").strip
     end
 
     private def tag(name : String, attrs = nil, self_closing = false, end_tag = false)

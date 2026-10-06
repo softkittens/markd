@@ -14,6 +14,11 @@ module Markd
     # Not supported for now.
     property? toc : Bool
 
+    # If `true`, each heading has an `id` made from its text as GitHub makes
+    # it, `## Install it` as `id="install-it"`, and HTMLRenderer#headings
+    # lists them.
+    property? heading_ids : Bool
+
     # If `true`:
     # - straight quotes will be made curly
     # - `--` will be changed to an en dash
@@ -86,6 +91,7 @@ module Markd
       @tagfilter = false,
       @autolink = false,
       @base_url = nil,
+      @heading_ids = false,
     )
     end
 
