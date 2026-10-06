@@ -20,8 +20,6 @@ module Markd
 
     ESCAPABLE = /^#{ESCAPABLE_STRING}/
 
-    TICKS = /`+/
-
     ELLIPSIS = "..."
     DASH     = /--+/
 

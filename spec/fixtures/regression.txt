@@ -185,3 +185,12 @@ a number names no character.
 .
 <p><a href="/&amp;#650">a</a> <a href="/&amp;#x3c3c3c3c3c3c3c3c3c3c;">b</a> <a href="/%F0%9F%98%80">c</a></p>
 ````````````````````````````````
+
+A code span closes at the first later run of backticks of its opener's
+length.
+
+```````````````````````````````` example
+``a`b```c`` `d` \``e``
+.
+<p><code>a`b```c</code> <code>d</code> ``e``</p>
+````````````````````````````````

@@ -10,6 +10,9 @@ module Markd::Parser
 
     @delimiters : Delimiter?
 
+    # Where each run of backticks in the text starts, by its length.
+    @tick_runs = {} of Int32 => Array(Int32)
+
     def initialize(@options : Options)
       @text = ""
       @pos = 0
@@ -20,6 +23,7 @@ module Markd::Parser
       @pos = 0
       @delimiters = nil
       @text = node.text.strip
+      @tick_runs = tick_runs
 
       loop do
         break unless process_line(node)
@@ -171,24 +175,37 @@ module Markd::Parser
 
       num_ticks = @pos - start_pos
       after_open_ticks = @pos
-      while (text = match(Rule::TICKS))
-        if text.bytesize == num_ticks
-          child = Node.new(Node::Type::Code)
-          child_text = @text.byte_slice(after_open_ticks, (@pos - num_ticks) - after_open_ticks).gsub(Rule::LINE_ENDING, " ")
-          if child_text.bytesize >= 2 && child_text[0] == ' ' && child_text[-1] == ' ' && child_text.matches?(/[^ ]/)
-            child_text = child_text.byte_slice(1, child_text.bytesize - 2)
-          end
-          child.text = child_text
-          node.append_child(child)
-
-          return true
+      # The closer is the first later run of the same length.
+      if (closer = @tick_runs[num_ticks]?.try(&.bsearch { |run| run >= after_open_ticks }))
+        @pos = closer + num_ticks
+        child = Node.new(Node::Type::Code)
+        child_text = @text.byte_slice(after_open_ticks, closer - after_open_ticks).gsub(Rule::LINE_ENDING, " ")
+        if child_text.bytesize >= 2 && child_text[0] == ' ' && child_text[-1] == ' ' && child_text.matches?(/[^ ]/)
+          child_text = child_text.byte_slice(1, child_text.bytesize - 2)
         end
+        child.text = child_text
+        node.append_child(child)
+      else
+        node.append_child(text("`" * num_ticks))
       end
 
-      @pos = after_open_ticks
-      node.append_child(text("`" * num_ticks))
-
       true
+    end
+
+    # Where each run of backticks in the text starts, by its length: found
+    # once per text, as cmark keeps them, where searching for each opener's
+    # closer took time growing with the square of the text.
+    private def tick_runs : Hash(Int32, Array(Int32))
+      runs = {} of Int32 => Array(Int32)
+      at = 0
+      while (start = @text.byte_index('`'.ord.to_u8, at))
+        at = start
+        while @text.byte_at?(at) == '`'.ord
+          at += 1
+        end
+        (runs[at - start] ||= [] of Int32) << start
+      end
+      runs
     end
 
     private def bang(node : Node)
