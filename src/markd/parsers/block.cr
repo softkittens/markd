@@ -95,6 +95,8 @@ module Markd::Parser
       @oldtip = tip
       @offset = 0
       @column = 0
+      @next_nonspace = 0
+      @next_nonspace_column = 0
       @blank = false
       @partially_consumed_tab = false
       @current_line += 1
@@ -273,30 +275,34 @@ module Markd::Parser
     end
 
     private def find_next_nonspace
-      offset = @offset
-      column = @column
+      # Found again only once the offset reaches it, as cmark does: each
+      # container on the line would read the same run of spaces again.
+      if @next_nonspace <= @offset
+        offset = @offset
+        column = @column
 
-      if @line.empty?
-        @blank = true
-      else
-        while (char = char_at?(offset))
-          case char
-          when ' '
-            offset += 1
-            column += 1
-          when '\t'
-            offset += 1
-            column += (4 - (column % 4))
-          else
-            break
+        if @line.empty?
+          @blank = true
+        else
+          while (char = char_at?(offset))
+            case char
+            when ' '
+              offset += 1
+              column += 1
+            when '\t'
+              offset += 1
+              column += (4 - (column % 4))
+            else
+              break
+            end
           end
+
+          @blank = {nil, '\n', '\r'}.includes?(char)
         end
 
-        @blank = {nil, '\n', '\r'}.includes?(char)
+        @next_nonspace = offset
+        @next_nonspace_column = column
       end
-
-      @next_nonspace = offset
-      @next_nonspace_column = column
       @indent = @next_nonspace_column - @column
       @indented = @indent >= Rule::CODE_INDENT
 
