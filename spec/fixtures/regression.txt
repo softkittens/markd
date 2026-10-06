@@ -304,3 +304,28 @@ it does not raise.
 <p>|a|b|
 |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - x</p>
 ````````````````````````````````
+
+A `-` list item ends a table, as `*` and `+` items do.
+
+```````````````````````````````` example gfm
+|a|
+|-|
+|b|
+- c
+.
+<table>
+<thead>
+<tr>
+<th>a</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>b</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>c</li>
+</ul>
+````````````````````````````````

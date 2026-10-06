@@ -125,7 +125,7 @@ module Markd::Rule
         parser.pipe?) ||
         # Lines that are not empty and are not the start of a
         # block-level structure are ALSO continuations (see gfm-spec.txt:3397)
-        !(parser.line.strip.empty? || parser.line.matches?(/^(?:>|\#{1,6}|`{3}|\t{1}|\s{4}|(?:[*-+]\s)+|[0-9]+\.)+/))
+        !(parser.line.strip.empty? || parser.line.matches?(/^(?:>|\#{1,6}|`{3}|\t{1}|\s{4}|(?:[*+-]\s)+|[0-9]+\.)+/))
     end
 
     private def strip_pipe(text : String) : String
