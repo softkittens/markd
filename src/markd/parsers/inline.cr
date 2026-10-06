@@ -656,20 +656,55 @@ module Markd::Parser
       node
     end
 
+    # A link label at the position: the bytes from its `[` to its `]`, and
+    # the position past it; 0 when there is none. A backslash takes the
+    # character after it, an unescaped `[` ends the label, and it holds at
+    # most 999 characters, as commonmark.js reads it.
     private def link_label
-      text = match(Rule::LINK_LABEL)
-      if text && text.size <= 1001 && (!text.ends_with?("\\]") || text[-3]? == '\\')
-        text.bytesize - 1
-      else
-        0
+      return 0 unless char_at?(@pos) == '['
+      stop = @pos + 1
+      chars = 0
+      while (char = char_at?(stop))
+        case char
+        when ']'
+          size = stop - @pos
+          @pos = stop + 1
+          return size
+        when '['
+          return 0
+        when '\\'
+          stop += 1
+          chars += 1
+        end
+        stop += 1
+        # A UTF-8 continuation byte is part of the character before it.
+        chars += 1 unless char.ord & 0xC0 == 0x80
+        return 0 if chars > 999
       end
+      0
     end
 
+    # A link title at the position, in `"`, `'` or `(…)`, and the position
+    # past it. A backslash takes the character after it, and a title in
+    # parentheses holds no unescaped `(`, as commonmark.js reads it.
     private def link_title
-      title = match(Rule::LINK_TITLE)
-      return unless title
+      opener = char_at?(@pos)
+      closer = case opener
+               when '"', '\'' then opener
+               when '('       then ')'
+               else                return
+               end
+      stop = @pos + 1
+      while (char = char_at?(stop))
+        break if char == closer
+        return if opener == '(' && char == '('
+        stop += char == '\\' ? 2 : 1
+      end
+      return unless char_at?(stop) == closer
 
-      Utils.decode_entities_string(title[1..-2])
+      title = @text.byte_slice(@pos + 1, stop - @pos - 1)
+      @pos = stop + 1
+      Utils.decode_entities_string(title)
     end
 
     private def link_destination

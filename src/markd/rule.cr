@@ -55,12 +55,6 @@ module Markd
       /\]\]>/,
     ]
 
-    LINK_TITLE = Regex.new("(?:\"(#{ESCAPED_CHAR_STRING}|[^\"\\x00])*\"" +
-                           "|'(#{ESCAPED_CHAR_STRING}|[^'\\x00])*'" +
-                           "|\\((#{ESCAPED_CHAR_STRING}|[^)\\x00])*\\))")
-
-    LINK_LABEL = Regex.new("\\[(?:[^\\\\\\[\\]]|" + ESCAPED_CHAR_STRING + "|\\\\){0,}\\]")
-
     LINK_DESTINATION_BRACES = Regex.new("(?:[<](?:[^<>\\t\\n\\\\\\x00]|" + ESCAPED_CHAR_STRING + ")*[>])")
 
     # A valid domain name is:
