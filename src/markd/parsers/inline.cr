@@ -9,6 +9,7 @@ module Markd::Parser
     private getter! brackets
 
     @delimiters : Delimiter?
+    @has_at = false
 
     # Where each run of backticks in the text starts, by its length.
     @tick_runs = {} of Int32 => Array(Int32)
@@ -24,6 +25,7 @@ module Markd::Parser
       @delimiters = nil
       @text = node.text.strip
       @tick_runs = tick_runs
+      @has_at = @options.autolink? && @text.includes?('@')
 
       loop do
         break unless process_line(node)
@@ -105,12 +107,8 @@ module Markd::Parser
             when ':'
               emoji(node)
             else
-              if @options.autolink? && node.text.includes? '@'
-                # Catch email autolinks for GFM
-                auto_link(node)
-              else
-                string(node)
-              end
+              # Catch email autolinks for GFM
+              (@has_at && auto_link(node)) || string(node)
             end
 
       unless res
@@ -500,9 +498,9 @@ module Markd::Parser
           if clean_text.empty?
             node.append_child(text(matched_text))
           else
-            _, post = @text.split(clean_text, 2)
+            # What the cleanup left out is read again as text.
+            @pos -= matched_text.bytesize - clean_text.bytesize
             node.append_child(link(clean_text, false, true))
-            node.append_child(text(post)) if post.size > 0 && matched_text != clean_text
           end
           return true
         elsif (matched_text = (
@@ -514,9 +512,8 @@ module Markd::Parser
           if clean_text.empty?
             node.append_child(text(matched_text))
           else
-            _, post = @text.split(clean_text, 2)
+            @pos -= matched_text.bytesize - clean_text.bytesize
             node.append_child(link(clean_text, false, false))
-            node.append_child(text(post)) if post.size > 0 && matched_text != clean_text
           end
           return true
         elsif (matched_text = match(Rule::EXTENDED_EMAIL_AUTO_LINK))
@@ -912,12 +909,18 @@ module Markd::Parser
       true
     end
 
+    # The text `regex` matches at the position, which then moves past it.
+    # The match is anchored at the position and reads no further than the
+    # pattern does; the text is valid UTF-8 (Block#parse).
     private def match(regex : Regex) : String?
-      text = @text.byte_slice(@pos)
-      if (match = text.match(regex))
-        @pos += match.byte_end.not_nil!
+      if (match = match_at(regex, @pos))
+        @pos = match.byte_end(0)
         match[0]
       end
+    end
+
+    private def match_at(regex : Regex, pos : Int32) : Regex::MatchData?
+      regex.match_at_byte_index(@text, pos, Regex::MatchOptions::ANCHORED | Regex::MatchOptions::NO_UTF_CHECK)
     end
 
     # This function advances @pos as far as possible until it finds a
@@ -935,7 +938,7 @@ module Markd::Parser
         # If we are at the beginning of the string, then we return
         # the chunk matched
         if @options.autolink?
-          advance = special_string?(@text, @pos)
+          advance = special_string?(@pos)
           if advance > 0
             if @pos > start_pos
               break
@@ -959,43 +962,45 @@ module Markd::Parser
     end
 
     # Identify "special" strings by matching against
-    # regular expressions. It returns the number of characters
+    # regular expressions. It returns the number of bytes
     # that were matched.
 
-    private def special_string?(full_text : String, pos : Int) : Int
-      text = full_text.byte_slice(pos)
+    private def special_string?(pos : Int32) : Int32
+      # An extended email autolink starts at a letter or digit after a
+      # character that is not one, where it is matched first.
+      if @has_at && char_at(pos).ascii_alphanumeric? && (pos == 0 || !char_at(pos - 1).ascii_alphanumeric?) &&
+         (m = match_at(Rule::EXTENDED_EMAIL_AUTO_LINK, pos))
+        return m.byte_end(0) - pos
+      end
+      if @has_at && (starts_at?(pos, "mailto:") || starts_at?(pos, "xmpp:")) &&
+         (m = match_at(Rule::MAILTO_AUTO_LINK, pos) || match_at(Rule::XMPP_AUTO_LINK, pos))
+        return m.byte_end(0) - pos
+      end
+
       # All such recognized autolinks can only come at the beginning of
       # a line, after whitespace, or any of the delimiting characters `*`, `_`, `~`,
       # and `(`.
       if pos > 0 && !("*_~( \n\t".includes? char_at(pos - 1))
         0
-      elsif text.starts_with?("http://") || text.starts_with?("https://") || text.starts_with?("ftp://")
+      elsif starts_at?(pos, "http://") || starts_at?(pos, "https://") || starts_at?(pos, "ftp://")
         # This should not be an autolink:
         # < ftp://example.com >
-        if full_text[...pos].includes?("<") && full_text[...pos].matches?(/<\s*$/)
-          return 0
+        before = pos - 1
+        while before >= 0 && char_at(before).ascii_whitespace?
+          before -= 1
         end
+        return 0 if before >= 0 && char_at(before) == '<'
 
-        m = autolink_cleanup(text.match(Rule::PROTOCOL_AUTO_LINK).to_s)
-        m.size
-      elsif text.starts_with?("www.") && text.matches?(Rule::WWW_AUTO_LINK)
-        m = autolink_cleanup(text.match(Rule::WWW_AUTO_LINK).to_s)
-        m.size
-      elsif text.includes?("@") && text.matches?(Rule::EXTENDED_EMAIL_AUTO_LINK)
-        # m = autolink_cleanup(text.match(Rule::EMAIL_AUTO_LINK).to_s)
-        matched_text = text.match(Rule::EMAIL_AUTO_LINK).to_s
-
-        # `.`, `-`, and `_` can occur on both sides of the `@`, but only `.` may occur at
-        # the end of the email address, in which case it will not be considered part of
-        # the address:
-
-        if "-_".includes? char_at(pos + matched_text.size + 1)
-          return 0
-        end
-        matched_text.size
+        autolink_cleanup(match_at(Rule::PROTOCOL_AUTO_LINK, pos).try(&.[0]) || "").bytesize
+      elsif starts_at?(pos, "www.") && (m = match_at(Rule::WWW_AUTO_LINK, pos))
+        autolink_cleanup(m[0]).bytesize
       else
         0
       end
+    end
+
+    private def starts_at?(pos : Int32, prefix : String) : Bool
+      @text.byte_slice?(pos, prefix.bytesize) == prefix
     end
 
     # These cleanups are defined in the spec
@@ -1006,16 +1011,25 @@ module Markd::Parser
       # of parentheses.  If there is a greater number of closing parentheses than
       # opening ones, we don't consider the unmatched trailing parentheses part of the
       # autolink, in order to facilitate including an autolink inside a parenthesis:
-      while text.ends_with?(")") && text.count(")") != text.count("(")
-        text = text[0..-2]
-      end
-
+      #
       # Trailing punctuation (specifically, `?`, `!`, `.`, `,`, `:`, `*`, `_`, and `~`)
       # will not be considered part of the autolink, though they may be included in the
       # interior of the link
-      while "\"'?!.,:*~_".includes?(text[-1])
-        text = text[0..-2]
+      opening = text.count('(')
+      closing = text.count(')')
+      stop = text.bytesize
+      while stop > 0
+        case text.byte_at(stop - 1).unsafe_chr
+        when ')'
+          break unless closing > opening
+          closing -= 1
+        when '"', '\'', '?', '!', '.', ',', ':', '*', '~', '_'
+        else
+          break
+        end
+        stop -= 1
       end
+      text = text.byte_slice(0, stop)
 
       # If an autolink ends in a semicolon (`;`), we check to see if it appears to
       # resemble an [entity reference][entity references]; if the preceding text is `&`

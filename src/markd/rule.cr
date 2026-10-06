@@ -3,7 +3,9 @@ module Markd
     ESCAPABLE_STRING    = %Q([!"#$%&'()*+,./:;<=>?@[\\\\\\]^_`{|}~-])
     ESCAPED_CHAR_STRING = %Q(\\\\) + ESCAPABLE_STRING
 
-    NUMERIC_HTML_ENTITY = /^&#(?:[Xx][0-9a-fA-F]{1,6}|[0-9]{1,7});/
+    # The inline patterns are matched at the inline parser's position
+    # (Parser::Inline#match), anchored there, so they do not start with `^`.
+    NUMERIC_HTML_ENTITY = /&#(?:[Xx][0-9a-fA-F]{1,6}|[0-9]{1,7});/
     HTML_ENTITY         = /^&[a-zA-Z0-9]+;/
 
     TAG_NAME_STRING             = %Q([A-Za-z][A-Za-z0-9-]*)
@@ -18,7 +20,7 @@ module Markd
     MAYBE_SPECIAL  = {'#', '`', '~', '*', '+', '_', '=', '<', '>', '-', '|'}
     THEMATIC_BREAK = /^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})[ \t]*$/
 
-    ESCAPABLE = /^#{ESCAPABLE_STRING}/
+    ESCAPABLE = /#{ESCAPABLE_STRING}/
 
     ELLIPSIS = "..."
     DASH     = /--+/
@@ -33,7 +35,7 @@ module Markd
     DECLARATION_STRING            = "<![A-Z]+" + "\\s+[^>]*>"
     CDATA_STRING                  = "<!\\[CDATA\\[[\\s\\S]*?\\]\\]>"
     HTML_TAG_STRING               = "(?:#{OPEN_TAG_STRING}|#{CLOSE_TAG_STRING}|#{COMMENT_STRING}|#{PROCESSING_INSTRUCTION_STRING}|#{DECLARATION_STRING}|#{CDATA_STRING})"
-    HTML_TAG                      = /^#{HTML_TAG_STRING}/i
+    HTML_TAG                      = /#{HTML_TAG_STRING}/i
 
     HTML_BLOCK_OPEN = [
       /^<(?:script|pre|style)(?:\s|>|$)/i,
@@ -53,13 +55,13 @@ module Markd
       /\]\]>/,
     ]
 
-    LINK_TITLE = Regex.new("^(?:\"(#{ESCAPED_CHAR_STRING}|[^\"\\x00])*\"" +
+    LINK_TITLE = Regex.new("(?:\"(#{ESCAPED_CHAR_STRING}|[^\"\\x00])*\"" +
                            "|'(#{ESCAPED_CHAR_STRING}|[^'\\x00])*'" +
                            "|\\((#{ESCAPED_CHAR_STRING}|[^)\\x00])*\\))")
 
-    LINK_LABEL = Regex.new("^\\[(?:[^\\\\\\[\\]]|" + ESCAPED_CHAR_STRING + "|\\\\){0,}\\]")
+    LINK_LABEL = Regex.new("\\[(?:[^\\\\\\[\\]]|" + ESCAPED_CHAR_STRING + "|\\\\){0,}\\]")
 
-    LINK_DESTINATION_BRACES = Regex.new("^(?:[<](?:[^<>\\t\\n\\\\\\x00]|" + ESCAPED_CHAR_STRING + ")*[>])")
+    LINK_DESTINATION_BRACES = Regex.new("(?:[<](?:[^<>\\t\\n\\\\\\x00]|" + ESCAPED_CHAR_STRING + ")*[>])")
 
     # A valid domain name is:
     #
@@ -78,14 +80,16 @@ module Markd
     VALID_DOMAIN_NAME = /^(?:#{OTHER_DOMAIN_SEGMENTS}\.)*(?:#{LAST_DOMAIN_SEGMENT}\.)+#{LAST_DOMAIN_SEGMENT}$/
     VALID_URL_PATH    = /(?:\/[^\s<]*)?/
 
-    AUTOLINK_PROTOCOLS = /^(?:http|https|ftp):\/\//
+    AUTOLINK_PROTOCOLS = /(?:http|https|ftp):\/\//
 
-    EMAIL_AUTO_LINK          = /^<([a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/
-    EXTENDED_EMAIL_AUTO_LINK = /^([a-zA-Z0-9][a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+)[-_]*/
-    AUTO_LINK                = /^<[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*>/i
-    WWW_AUTO_LINK            = /^www\.#{DOMAIN_NAME}#{VALID_URL_PATH}/
-    XMPP_AUTO_LINK           = /^xmpp:[A-Za-z0-9]+@#{DOMAIN_NAME}#{VALID_URL_PATH}/
-    MAILTO_AUTO_LINK         = /^mailto:[A-Za-z0-9]+@#{DOMAIN_NAME}/
+    EMAIL_AUTO_LINK = /<([a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)>/
+    # A local part of at most 64 characters, as RFC 5321 has it, so that
+    # trying it at each word of a text stays linear.
+    EXTENDED_EMAIL_AUTO_LINK = /([a-zA-Z0-9][a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]{1,63}@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+)[-_]*/
+    AUTO_LINK                = /<[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*>/i
+    WWW_AUTO_LINK            = /www\.#{DOMAIN_NAME}#{VALID_URL_PATH}/
+    XMPP_AUTO_LINK           = /xmpp:[A-Za-z0-9]+@#{DOMAIN_NAME}#{VALID_URL_PATH}/
+    MAILTO_AUTO_LINK         = /mailto:[A-Za-z0-9]+@#{DOMAIN_NAME}/
     PROTOCOL_AUTO_LINK       = /#{AUTOLINK_PROTOCOLS}#{DOMAIN_NAME}#{VALID_URL_PATH}[^\s?!.,:*_~]/
 
     WHITESPACE_CHAR = /^[ \t\n\x0b\x0c\x0d]/

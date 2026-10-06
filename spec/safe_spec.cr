@@ -25,3 +25,9 @@ describe "safe: true destinations" do
       .should eq(%(<p><a href="https://x.test/?to=vbscript:x">a</a> <a href="/data:x">b</a></p>\n))
   end
 end
+
+describe "Markd.to_html" do
+  it "reads a byte that is not UTF-8 as U+FFFD" do
+    Markd.to_html("a\xFFb *c*").should eq("<p>a�b <em>c</em></p>\n")
+  end
+end

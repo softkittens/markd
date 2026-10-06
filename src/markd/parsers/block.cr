@@ -55,6 +55,12 @@ module Markd::Parser
     end
 
     def parse(source : String)
+      # Inline#match runs its patterns without checking the text is UTF-8
+      # each time, so the text is made valid here, once. NUL is U+FFFD, as
+      # CommonMark has it.
+      source = source.scrub unless source.valid_encoding?
+      source = source.gsub(Char::ZERO, '\u{FFFD}') if source.includes?(Char::ZERO)
+
       Utils.timer("block parsing", @options.time?) do
         parse_blocks(source)
       end
@@ -90,7 +96,6 @@ module Markd::Parser
       @partially_consumed_tab = false
       @current_line += 1
 
-      line = line.gsub(Char::ZERO, '\u{FFFD}')
       @line = line
 
       while (last_child = container.last_child?) && last_child.open?
