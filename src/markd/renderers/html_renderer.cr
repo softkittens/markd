@@ -217,12 +217,8 @@ module Markd
       if entering
         if @disable_tag == 0
           destination = node.data["destination"].as(String)
-          if @options.safe? && potentially_unsafe(destination)
-            literal(%(<img src="" alt=""))
-          else
-            destination = resolve_uri(destination, node)
-            literal(%(<img src="#{escape(destination)}" alt="))
-          end
+          src = @options.safe? && potentially_unsafe(destination) ? "" : escape(resolve_uri(destination, node))
+          literal(%(<img src="#{src}" alt="))
         end
         @disable_tag += 1
       else
@@ -244,6 +240,9 @@ module Markd
     end
 
     def html_inline(node : Node, entering : Bool) : Nil
+      # Inside an image's alt text, as text.
+      return output(node.text) if @disable_tag > 0
+
       content = @options.safe? ? "<!-- raw HTML omitted -->" : node.text
       literal(content)
     end
@@ -276,10 +275,12 @@ module Markd
     end
 
     def soft_break(node : Node, entering : Bool) : Nil
-      literal("\n")
+      literal(@disable_tag > 0 ? " " : "\n")
     end
 
     def line_break(node : Node, entering : Bool) : Nil
+      return literal(" ") if @disable_tag > 0
+
       tag("br", self_closing: true)
       newline
     end

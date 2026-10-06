@@ -155,3 +155,14 @@ icyleaf/markd issue #80
 .
 <p>1212121212121</p>
 ````````````````````````````````
+
+Raw HTML and line breaks inside an image's alt text are written as text,
+as cmark writes them.
+
+```````````````````````````````` example
+![<b x="">a</b>
+b\
+c](/i.png)
+.
+<p><img src="/i.png" alt="&lt;b x=&quot;&quot;&gt;a&lt;/b&gt; b c" /></p>
+````````````````````````````````
