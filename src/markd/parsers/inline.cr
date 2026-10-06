@@ -841,16 +841,18 @@ module Markd::Parser
       }
     end
 
-    def reference(text : String, refmap)
+    # Reads a link reference definition at byte `at` of `text` into
+    # `refmap`; the bytes it took, 0 when there is none.
+    def reference(text : String, refmap, at = 0)
       @text = text
-      @pos = 0
+      @pos = at
 
       startpos = @pos
       match_chars = link_label
 
       # label
       return 0 if match_chars == 0
-      raw_label = @text.byte_slice(0, match_chars + 1)
+      raw_label = @text.byte_slice(startpos, match_chars + 1)
 
       # colon
       if char_at?(@pos) == ':'

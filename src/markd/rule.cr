@@ -132,6 +132,18 @@ module Markd
     # accepts_line
     abstract def accepts_lines? : Bool
 
+    # Reads the link reference definitions a paragraph starts with into the
+    # parser's refmap, and leaves the rest as its text; the bytes they took.
+    def self.references(parser : Parser, container : Node) : Int32
+      text = container.text
+      at = 0
+      while text.byte_at?(at) == '['.ord && (size = parser.inline_lexer.reference(text, parser.refmap, at)) > 0
+        at += size
+      end
+      container.text = text.byte_slice(at) if at > 0
+      at
+    end
+
     private def space_or_tab?(char : Char?) : Bool
       char == ' ' || char == '\t'
     end

@@ -11,15 +11,8 @@ module Markd::Rule
     end
 
     def token(parser : Parser, container : Node) : Nil
-      has_reference_defs = false
-
-      while container.text[0]? == '[' &&
-            (pos = parser.inline_lexer.reference(container.text, parser.refmap)) && pos > 0
-        container.text = container.text.byte_slice(pos)
-        has_reference_defs = true
-      end
-
-      container.unlink if has_reference_defs && container.text.each_char.all? &.ascii_whitespace?
+      at = Rule.references(parser, container)
+      container.unlink if at > 0 && container.text.each_char.all? &.ascii_whitespace?
     end
 
     def can_contain?(type)

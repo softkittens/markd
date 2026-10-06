@@ -27,10 +27,7 @@ module Markd::Rule
         # Setext Heading matched
         parser.close_unmatched_blocks
 
-        while container.text[0]? == '[' &&
-              (pos = parser.inline_lexer.reference(container.text, parser.refmap)) && pos > 0
-          container.text = container.text.byte_slice(pos)
-        end
+        Rule.references(parser, container)
         return MatchValue::None if container.text.empty?
 
         heading = Node.new(Node::Type::Heading)
