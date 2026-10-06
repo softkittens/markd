@@ -231,10 +231,11 @@ module Markd::Parser
         @offset += 1 # skip over tab
         # add space characters
         chars_to_tab = Rule::CODE_INDENT - (@column % 4)
-        tip.text += " " * chars_to_tab
+        tip.append_text(" " * chars_to_tab)
       end
 
-      tip.text += @line[@offset..-1] + "\n"
+      tip.append_text(@line[@offset..-1])
+      tip.append_text("\n")
 
       nil
     end

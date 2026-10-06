@@ -61,7 +61,9 @@ module Markd
 
     property(data) { {} of String => DataValue }
     property source_pos = { {1, 1}, {0, 0} }
-    property text = ""
+    @text = ""
+    # What `append_text` added since the text was last read or set.
+    @appended : String::Builder? = nil
     property? open = true
     property? fenced = false
     property fence_language = ""
@@ -78,6 +80,26 @@ module Markd
     property! next : Node?
 
     def initialize(@type)
+    end
+
+    def text : String
+      if (appended = @appended)
+        @appended = nil
+        @text = appended.to_s
+      end
+      @text
+    end
+
+    def text=(@text : String) : String
+      @appended = nil
+      @text
+    end
+
+    # Adds `string` to the text without copying the text: the block parser
+    # adds a block's lines one at a time.
+    def append_text(string : String) : Nil
+      appended = @appended ||= String::Builder.new.tap(&.<<(@text))
+      appended << string
     end
 
     def append_child(child : Node)
