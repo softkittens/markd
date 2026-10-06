@@ -2,12 +2,14 @@ module Markd::Rule
   struct CodeBlock
     include Rule
 
-    CODE_FENCE         = /^`{3,}(?!.*`)|^~{3,}/
-    CLOSING_CODE_FENCE = /^(?:`{3,}|~{3,})(?= *$)/
+    # The fence is all of its run: giving back backticks to retry the
+    # lookahead took time growing with the square of the run.
+    CODE_FENCE         = /`{3,}+(?!.*`)|~{3,}+/
+    CLOSING_CODE_FENCE = /(?:`{3,}+|~{3,}+)(?= *$)/
 
     def match(parser : Parser, container : Node) : MatchValue
       if !parser.indented &&
-         (match = parser.line[parser.next_nonspace..-1].match(CODE_FENCE))
+         (match = parser.match_at(CODE_FENCE))
         # fenced
         fence_length = match[0].size
 
@@ -36,13 +38,12 @@ module Markd::Rule
     end
 
     def continue(parser : Parser, container : Node) : ContinueStatus
-      line = parser.line
       indent = parser.indent
       if container.fenced?
         # fenced
         match = indent <= 3 &&
-                line[parser.next_nonspace]? == container.fence_char[0] &&
-                line[parser.next_nonspace..-1].match(CLOSING_CODE_FENCE)
+                parser.char_at?(parser.next_nonspace) == container.fence_char[0] &&
+                parser.match_at(CLOSING_CODE_FENCE)
 
         if match && match.as(Regex::MatchData)[0].size >= container.fence_length
           # closing fence - we're at end of line, so we can return
@@ -51,7 +52,7 @@ module Markd::Rule
         else
           # skip optional spaces of fence offset
           index = container.fence_offset
-          while index > 0 && space_or_tab?(parser.line[parser.offset]?)
+          while index > 0 && space_or_tab?(parser.char_at?(parser.offset))
             parser.advance_offset(1, true)
             index -= 1
           end

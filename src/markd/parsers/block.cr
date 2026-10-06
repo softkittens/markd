@@ -26,6 +26,9 @@ module Markd::Parser
     getter line, current_line, blank, inline_lexer,
       indent, indented, next_nonspace, refmap
 
+    # Whether the line holds an unescaped `|`, as a table row does.
+    getter? pipe = false
+
     delegate gfm?, tagfilter?, to: @options
 
     def initialize(@options : Options)
@@ -97,6 +100,7 @@ module Markd::Parser
       @current_line += 1
 
       @line = line
+      @pipe = line.includes?('|') && line.matches?(Rule::TABLE_CELL_SEPARATOR, options: Regex::MatchOptions::NO_UTF_CHECK)
 
       while (last_child = container.last_child?) && last_child.open?
         container = last_child
@@ -128,8 +132,8 @@ module Markd::Parser
 
         # this is a little performance optimization
         unless @indented
-          first_char = @line[@next_nonspace]?
-          unless first_char && (Rule::MAYBE_SPECIAL.includes?(first_char) || first_char.ascii_number? || @line.match(Rule::TABLE_CELL_SEPARATOR))
+          first_char = char_at?(@next_nonspace)
+          unless first_char && (Rule::MAYBE_SPECIAL.includes?(first_char) || first_char.ascii_number? || @pipe)
             advance_next_nonspace
             break
           end
@@ -185,7 +189,7 @@ module Markd::Parser
           if container_type.html_block? && match_html_block?(container)
             token(container, @current_line)
           end
-        elsif @offset < line.size && !@blank
+        elsif @offset < line.bytesize && !@blank
           # create paragraph container for line
           add_child(Node::Type::Paragraph, @offset)
           advance_next_nonspace
@@ -234,7 +238,7 @@ module Markd::Parser
         tip.append_text(" " * chars_to_tab)
       end
 
-      tip.append_text(@line[@offset..-1])
+      tip.append_text(@line.byte_slice(@offset))
       tip.append_text("\n")
 
       nil
@@ -275,7 +279,7 @@ module Markd::Parser
       if @line.empty?
         @blank = true
       else
-        while (char = @line[offset]?)
+        while (char = char_at?(offset))
           case char
           when ' '
             offset += 1
@@ -300,8 +304,7 @@ module Markd::Parser
     end
 
     def advance_offset(count : Int32, columns = false)
-      line = @line
-      while count > 0 && (char = line[@offset]?)
+      while count > 0 && (char = char_at?(@offset))
         if char == '\t'
           chars_to_tab = Rule::CODE_INDENT - (@column % 4)
           if columns
@@ -318,7 +321,7 @@ module Markd::Parser
           end
         else
           @partially_consumed_tab = false
-          @column += 1 # assume ascii; block starts are ascii
+          @column += 1 # a byte; block starts are ascii
           @offset += 1
           count -= 1
         end
@@ -335,10 +338,24 @@ module Markd::Parser
       nil
     end
 
+    # The line's byte at `index`, as a character: its own when it is ASCII,
+    # as everything a block start is made of is. Offsets in a line count
+    # bytes, so that reading at one does not count the characters before it.
+    def char_at?(index : Int32) : Char?
+      @line.byte_at?(index).try(&.unsafe_chr)
+    end
+
+    # `regex` matched at byte `index` of the line, anchored there; the line
+    # is valid UTF-8 (#parse).
+    def match_at(regex : Regex, index : Int32 = @next_nonspace) : Regex::MatchData?
+      regex.match_at_byte_index(@line, index, Regex::MatchOptions::ANCHORED | Regex::MatchOptions::NO_UTF_CHECK)
+    end
+
     private def match_html_block?(container : Node)
       if (block_type = container.data["html_block_type"])
         block_type = block_type.as(Int32)
-        block_type >= 0 && block_type <= 4 && Rule::HTML_BLOCK_CLOSE[block_type].match(@line[@offset..-1])
+        block_type >= 0 && block_type <= 4 &&
+          Rule::HTML_BLOCK_CLOSE[block_type].match_at_byte_index(@line, @offset, Regex::MatchOptions::NO_UTF_CHECK)
       else
         false
       end

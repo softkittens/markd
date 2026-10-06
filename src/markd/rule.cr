@@ -37,14 +37,16 @@ module Markd
     HTML_TAG_STRING               = "(?:#{OPEN_TAG_STRING}|#{CLOSE_TAG_STRING}|#{COMMENT_STRING}|#{PROCESSING_INSTRUCTION_STRING}|#{DECLARATION_STRING}|#{CDATA_STRING})"
     HTML_TAG                      = /#{HTML_TAG_STRING}/i
 
+    # Matched at the block parser's offset (Parser::Block#match_at), as are
+    # the patterns of the block rules.
     HTML_BLOCK_OPEN = [
-      /^<(?:script|pre|style)(?:\s|>|$)/i,
-      /^<!--/,
-      /^<[?]/,
-      /^<![A-Z]/,
-      /^<!\[CDATA\[/,
-      /^<[\/]?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[123456]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|title|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|[\/]?[>]|$)/i,
-      Regex.new("^(?:" + OPEN_TAG + "|" + CLOSE_TAG + ")\\s*$", Regex::Options::IGNORE_CASE),
+      /<(?:script|pre|style)(?:\s|>|$)/i,
+      /<!--/,
+      /<[?]/,
+      /<![A-Z]/,
+      /<!\[CDATA\[/,
+      /<[\/]?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[123456]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|title|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|[\/]?[>]|$)/i,
+      Regex.new("(?:" + OPEN_TAG + "|" + CLOSE_TAG + ")\\s*$", Regex::Options::IGNORE_CASE),
     ]
 
     HTML_BLOCK_CLOSE = [

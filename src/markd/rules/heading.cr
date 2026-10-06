@@ -2,8 +2,8 @@ module Markd::Rule
   struct Heading
     include Rule
 
-    ATX_HEADING_MARKER    = /^\#{1,6}(?:[ \t]+|$)/
-    SETEXT_HEADING_MARKER = /^(?:=+|-+)[ \t]*$/
+    ATX_HEADING_MARKER    = /\#{1,6}(?:[ \t]+|$)/
+    SETEXT_HEADING_MARKER = /(?:=+|-+)[ \t]*$/
 
     def match(parser : Parser, container : Node) : MatchValue
       if (match = match?(parser, ATX_HEADING_MARKER))
@@ -14,11 +14,9 @@ module Markd::Rule
 
         container = parser.add_child(Node::Type::Heading, parser.next_nonspace)
         container.data["level"] = match[0].strip.size
-        container.text = parser.line[parser.offset..-1]
-          .sub(/^[ \t]*#+[ \t]*$/, "")
-          .sub(/[ \t]+#+[ \t]*$/, "")
+        container.text = without_closing_sequence(parser.line.byte_slice(parser.offset))
 
-        parser.advance_offset(parser.line.size - parser.offset)
+        parser.advance_offset(parser.line.bytesize - parser.offset)
 
         MatchValue::Leaf
       elsif (match = match?(parser, SETEXT_HEADING_MARKER)) &&
@@ -39,7 +37,7 @@ module Markd::Rule
         container.unlink
 
         parser.tip = heading
-        parser.advance_offset(parser.line.size - parser.offset, false)
+        parser.advance_offset(parser.line.bytesize - parser.offset, false)
 
         MatchValue::Leaf
       else
@@ -65,8 +63,27 @@ module Markd::Rule
     end
 
     private def match?(parser : Parser, regex : Regex) : Regex::MatchData?
-      match = parser.line[parser.next_nonspace..-1].match(regex)
-      !parser.indented && match ? match : nil
+      parser.match_at(regex) unless parser.indented
+    end
+
+    # An ATX heading's text without its closing sequence: `#`s at the end,
+    # after a space or a tab or alone, with the spaces and tabs around them.
+    private def without_closing_sequence(text : String) : String
+      stop = text.bytesize
+      while stop > 0 && space_or_tab?(text.byte_at(stop - 1).unsafe_chr)
+        stop -= 1
+      end
+      hashes = stop
+      while hashes > 0 && text.byte_at(hashes - 1) == '#'.ord
+        hashes -= 1
+      end
+      if hashes < stop && (hashes == 0 || space_or_tab?(text.byte_at(hashes - 1).unsafe_chr))
+        stop = hashes
+        while stop > 0 && space_or_tab?(text.byte_at(stop - 1).unsafe_chr)
+          stop -= 1
+        end
+      end
+      text.byte_slice(0, stop)
     end
   end
 end

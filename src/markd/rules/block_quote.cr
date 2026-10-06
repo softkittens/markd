@@ -11,7 +11,7 @@ module Markd::Rule
           # This is an alert
           node.data["alert"] = match[1]
           node.data["title"] = (match[2]? && !match[2].strip.empty?) ? match[2].strip : match[1]
-          parser.advance_offset(parser.line.size, false)
+          parser.advance_offset(parser.line.bytesize, false)
         else
           parser.add_child(Node::Type::BlockQuote, parser.next_nonspace)
         end
@@ -44,14 +44,14 @@ module Markd::Rule
     end
 
     private def match?(parser)
-      !parser.indented && parser.line[parser.next_nonspace]? == '>'
+      !parser.indented && parser.char_at?(parser.next_nonspace) == '>'
     end
 
     private def seek(parser : Parser)
       parser.advance_next_nonspace
       parser.advance_offset(1, false)
 
-      if space_or_tab?(parser.line[parser.offset]?)
+      if space_or_tab?(parser.char_at?(parser.offset))
         parser.advance_offset(1, true)
       end
     end

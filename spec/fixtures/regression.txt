@@ -251,3 +251,45 @@ marker's column.
 </code></pre>
 </blockquote>
 ````````````````````````````````
+
+Blocks in containers on lines that are not ASCII.
+
+```````````````````````````````` example gfm
+> - ćao
+>   # Žabe #
+>   ```ž
+>   č
+>   ```
+> 1. đ | e
+
+|ä|b|
+|-|-|
+|ö|ü|
+.
+<blockquote>
+<ul>
+<li>ćao
+<h1>Žabe</h1>
+<pre><code class="language-ž">č
+</code></pre>
+</li>
+</ul>
+<ol>
+<li>đ | e</li>
+</ol>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>ä</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ö</td>
+<td>ü</td>
+</tr>
+</tbody>
+</table>
+````````````````````````````````

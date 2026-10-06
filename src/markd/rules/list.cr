@@ -79,54 +79,54 @@ module Markd::Rule
         "start"         => 1,
       } of String => Node::DataValue
 
-      line = parser.line[parser.next_nonspace..-1]
+      start = parser.next_nonspace
+      marker = parser.char_at?(start)
 
-      if BULLET_LIST_MARKERS.includes?(line[0])
-        if parser.gfm? && line[1..].strip.starts_with?("[ ]")
+      if BULLET_LIST_MARKERS.includes?(marker)
+        # A task list item's box, after the marker and spaces.
+        box = start + 1
+        while parser.char_at?(box).try(&.ascii_whitespace?)
+          box += 1
+        end
+        checked = parser.line.byte_slice?(box, 3).try { |text| {"[ ]" => false, "[x]" => true}[text]? }
+        if parser.gfm? && !checked.nil?
           data["type"] = "checkbox"
-          data["bullet_char"] = line[0].to_s
-          data["checked"] = false
-          padding_checkbox = line.index!(']')
-        elsif parser.gfm? && line[1..].strip.starts_with?("[x]")
-          data["type"] = "checkbox"
-          data["bullet_char"] = line[0].to_s
-          data["checked"] = true
-          padding_checkbox = line.index!(']')
+          data["checked"] = checked
+          padding_checkbox = box + 2 - start
         else
           data["type"] = "bullet"
-          data["bullet_char"] = line[0].to_s
         end
+        data["bullet_char"] = marker.to_s
 
         first_match_size = 1
       else
         pos = 0
-        while line[pos]?.try &.ascii_number?
+        while parser.char_at?(start + pos).try &.ascii_number?
           pos += 1
         end
 
-        number = pos >= 1 ? line[0..pos - 1].to_i? : -1
+        number = pos >= 1 ? parser.line.byte_slice(start, pos).to_i? : -1
         if number.nil?
           return empty_data
         end
 
-        if pos >= 1 && pos <= 9 && ORDERED_LIST_MARKERS.includes?(line[pos]?) &&
+        if pos >= 1 && pos <= 9 && ORDERED_LIST_MARKERS.includes?(parser.char_at?(start + pos)) &&
            (!container.type.paragraph? || number == 1)
           data["type"] = "ordered"
           data["start"] = number
-          data["delimiter"] = line[pos].to_s
+          data["delimiter"] = parser.char_at?(start + pos).to_s
           first_match_size = pos + 1
         else
           return empty_data
         end
       end
 
-      next_char = parser.line[parser.next_nonspace + first_match_size]?
+      next_char = parser.char_at?(start + first_match_size)
       unless next_char.nil? || space_or_tab?(next_char)
         return empty_data
       end
 
-      if container.type.paragraph? &&
-         parser.line[(parser.next_nonspace + first_match_size)..-1].each_char.all? &.ascii_whitespace?
+      if container.type.paragraph? && blank_from?(parser, start + first_match_size)
         return empty_data
       end
 
@@ -143,24 +143,33 @@ module Markd::Rule
 
       loop do
         parser.advance_offset(1, true)
-        next_char = parser.line[parser.offset]?
+        next_char = parser.char_at?(parser.offset)
 
         break unless parser.column - spaces_start_column < 5 && space_or_tab?(next_char)
       end
 
-      blank_item = parser.line[parser.offset]?.nil?
+      blank_item = parser.char_at?(parser.offset).nil?
       spaces_after_marker = parser.column - spaces_start_column
       if spaces_after_marker >= 5 || spaces_after_marker < 1 || blank_item
         data["padding"] = first_match_size + 1
         parser.column = spaces_start_column
         parser.offset = spaces_start_offset
 
-        parser.advance_offset(1, true) if space_or_tab?(parser.line[parser.offset]?)
+        parser.advance_offset(1, true) if space_or_tab?(parser.char_at?(parser.offset))
       else
         data["padding"] = first_match_size + spaces_after_marker
       end
 
       data
+    end
+
+    # Whether the line holds only whitespace from byte `index`.
+    private def blank_from?(parser : Parser, index : Int32) : Bool
+      while (char = parser.char_at?(index))
+        return false unless char.ascii_whitespace?
+        index += 1
+      end
+      true
     end
 
     private def ends_with_blankline?(container : Node) : Bool

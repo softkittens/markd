@@ -2,13 +2,13 @@ module Markd::Rule
   struct ThematicBreak
     include Rule
 
-    THEMATIC_BREAK = /^(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})[ \t]*$/
+    THEMATIC_BREAK = /(?:(?:\*[ \t]*){3,}|(?:_[ \t]*){3,}|(?:-[ \t]*){3,})[ \t]*$/
 
     def match(parser : Parser, container : Node) : MatchValue
-      if !parser.indented && parser.line[parser.next_nonspace..-1].match(THEMATIC_BREAK)
+      if !parser.indented && parser.match_at(THEMATIC_BREAK)
         parser.close_unmatched_blocks
         parser.add_child(Node::Type::ThematicBreak, parser.next_nonspace)
-        parser.advance_offset(parser.line.size - parser.offset, false)
+        parser.advance_offset(parser.line.bytesize - parser.offset, false)
         MatchValue::Leaf
       else
         MatchValue::None
