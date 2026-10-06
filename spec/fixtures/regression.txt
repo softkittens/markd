@@ -166,3 +166,22 @@ c](/i.png)
 .
 <p><img src="/i.png" alt="&lt;b x=&quot;&quot;&gt;a&lt;/b&gt; b c" /></p>
 ````````````````````````````````
+
+An entity's name is 2 to 32 letters and digits, closed by `;`; anything
+else is text. A numeric reference past U+FFFF names its character, and one
+past U+10FFFF names none.
+
+```````````````````````````````` example
+&; &x; &a b; &copy; &#x1F600; &#128512; &#x110000;
+.
+<p>&amp;; &amp;x; &amp;a b; © 😀 😀 �</p>
+````````````````````````````````
+
+A numeric reference in a destination ends with `;`, and one too long for
+a number names no character.
+
+```````````````````````````````` example
+[a](/&#650) [b](/&#x3c3c3c3c3c3c3c3c3c3c;) [c](/&#x1F600;)
+.
+<p><a href="/&amp;#650">a</a> <a href="/&amp;#x3c3c3c3c3c3c3c3c3c3c;">b</a> <a href="/%F0%9F%98%80">c</a></p>
+````````````````````````````````

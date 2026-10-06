@@ -545,19 +545,14 @@ module Markd::Parser
           text = match(Rule::NUMERIC_HTML_ENTITY) || return false
           text = text.byte_slice(1, text.bytesize - 2)
         else
-          pos = @pos + 1
-          loop do
-            char = char_at?(pos)
-            pos += 1
-            case char
-            when ';'
-              break
-            when Char::ZERO, nil
-              return false
-            end
+          # A name is 2 to 32 letters and digits.
+          stop = @pos + 1
+          while stop - @pos <= 32 && char_at?(stop).try(&.ascii_alphanumeric?)
+            stop += 1
           end
-          text = @text.byte_slice((@pos + 1), (pos - 1) - (@pos + 1))
-          @pos = pos
+          return false unless char_at?(stop) == ';' && stop - @pos > 2
+          text = @text.byte_slice(@pos + 1, stop - @pos - 1)
+          @pos = stop + 1
         end
 
         decoded_text = HTML.decode_entity text

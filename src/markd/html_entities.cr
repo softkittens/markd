@@ -16,7 +16,9 @@ module Markd::HTMLEntities
   end
 
   module Decoder
-    REGEX = /&(?:([a-zA-Z0-9]{2,32};)|(#[xX][\da-fA-F]+;?|#\d+;?))/
+    # A reference ends with `;`; a numeric one has at most 6 hex or 7
+    # decimal digits, as CommonMark reads it.
+    REGEX = /&(?:[a-zA-Z0-9]{2,32}|#[xX][\da-fA-F]{1,6}|#\d{1,7});/
 
     def self.decode(source)
       source.gsub(REGEX) do |chars|
@@ -25,14 +27,14 @@ module Markd::HTMLEntities
     end
 
     def self.decode_entity(chars)
-      if chars[0] == '#'
+      if chars.starts_with?('#')
         if chars.size > 1
           if chars[1].downcase == 'x'
             if chars.size > 2
-              return decode_codepoint(chars[2..-1].to_i(16))
+              return decode_codepoint(chars[2..-1].to_i?(16) || return "\uFFFD")
             end
           else
-            return decode_codepoint(chars[1..-1].to_i(10))
+            return decode_codepoint(chars[1..-1].to_i?(10) || return "\uFFFD")
           end
         end
       else
@@ -46,7 +48,7 @@ module Markd::HTMLEntities
     end
 
     def self.decode_codepoint(codepoint)
-      return "\uFFFD" if codepoint >= 0xD800 && codepoint <= 0xDFFF || codepoint > 0x10FFF
+      return "\uFFFD" if codepoint >= 0xD800 && codepoint <= 0xDFFF || codepoint > 0x10FFFF
 
       if (decoded = Markd::HTMLEntities::DECODE_MAPPINGS[codepoint]?)
         codepoint = decoded
