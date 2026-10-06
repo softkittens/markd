@@ -328,7 +328,7 @@ module Markd::Parser
 
     def advance_next_nonspace
       @offset = @next_nonspace
-      @column - @next_nonspace_column
+      @column = @next_nonspace_column
       @partially_consumed_tab = false
 
       nil

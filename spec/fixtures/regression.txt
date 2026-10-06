@@ -239,3 +239,15 @@ A no-break space is whitespace on either side of a delimiter.
 .
 <p><em>a</em> b a <em>b</em></p>
 ````````````````````````````````
+
+A tab after a block quote marker indented by spaces expands from the
+marker's column.
+
+```````````````````````````````` example
+  >→→foo
+.
+<blockquote>
+<pre><code>foo
+</code></pre>
+</blockquote>
+````````````````````````````````
