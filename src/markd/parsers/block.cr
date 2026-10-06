@@ -29,6 +29,9 @@ module Markd::Parser
     # Whether the line holds an unescaped `|`, as a table row does.
     getter? pipe = false
 
+    # Where ThematicBreak's scan of the line failed.
+    property thematic_break_kill = 0
+
     delegate gfm?, tagfilter?, to: @options
 
     def initialize(@options : Options)
@@ -97,6 +100,7 @@ module Markd::Parser
       @column = 0
       @next_nonspace = 0
       @next_nonspace_column = 0
+      @thematic_break_kill = 0
       @blank = false
       @partially_consumed_tab = false
       @current_line += 1
