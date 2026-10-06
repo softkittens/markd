@@ -416,11 +416,11 @@ module Markd::Parser
                 closer_inl = closer.node
 
                 # remove used delimiters from stack elts and inlines
+                # Their nodes' text follows when they leave the stack
+                # (#settle_text): cut here, a long run was copied for
+                # each pair it gave.
                 opener.num_delims -= use_delims
                 closer.num_delims -= use_delims
-
-                opener_inl.text = opener_inl.text[0..(-use_delims - 1)]
-                closer_inl.text = closer_inl.text[0..(-use_delims - 1)]
 
                 if closer_char == '~'
                   emph = Node.new(Node::Type::Strikethrough)
@@ -804,6 +804,7 @@ module Markd::Parser
     end
 
     private def remove_delimiter(delimiter : Delimiter)
+      settle_text(delimiter)
       if (prev = delimiter.previous?)
         prev.next = delimiter.next?
       end
@@ -818,9 +819,22 @@ module Markd::Parser
 
     private def remove_delimiter_between(bottom : Delimiter, top : Delimiter)
       if bottom.next? != top
+        between = bottom.next?
+        while between && between != top
+          settle_text(between)
+          between = between.next?
+        end
         bottom.next = top
         top.previous = bottom
       end
+    end
+
+    # A run of `*`, `_` or `~` leaving the stack keeps the delimiters
+    # emphasis did not use.
+    private def settle_text(delimiter : Delimiter) : Nil
+      return unless delimiter.char.in?('*', '_', '~') && delimiter.node.text.bytesize > delimiter.num_delims
+
+      delimiter.node.text = delimiter.node.text.byte_slice(0, delimiter.num_delims)
     end
 
     private def scan_delims(char : Char)
