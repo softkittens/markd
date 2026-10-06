@@ -80,7 +80,7 @@ module Markd::Rule
         container.text = text
       else
         # indented
-        container.text = container.text.gsub(/(\n *)+$/, "\n")
+        container.text = Rule.without_blank_lines_at_end(container.text) + "\n"
       end
     end
 

@@ -28,7 +28,7 @@ module Markd::Rule
     end
 
     def token(parser : Parser, container : Node) : Nil
-      text = container.text.gsub(/(\n *)+$/, "")
+      text = Rule.without_blank_lines_at_end(container.text)
 
       if parser.tagfilter?
         text = self.class.escape_disallowed_html(text)

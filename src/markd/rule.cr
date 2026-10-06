@@ -136,6 +136,17 @@ module Markd
     # accepts_line
     abstract def accepts_lines? : Bool
 
+    # `text` up to the line break before the lines at its end that hold only
+    # spaces, as `text.sub(/(\n *)+$/, "")` had it; the pattern recursed once
+    # for each line and went past PCRE2's JIT stack on many.
+    def self.without_blank_lines_at_end(text : String) : String
+      stop = text.bytesize
+      while stop > 0 && text.byte_at(stop - 1).unsafe_chr.in?(' ', '\n')
+        stop -= 1
+      end
+      (cut = text.byte_index('\n'.ord.to_u8, stop)) ? text.byte_slice(0, cut) : text
+    end
+
     # Reads the link reference definitions a paragraph starts with into the
     # parser's refmap, and leaves the rest as its text; the bytes they took.
     def self.references(parser : Parser, container : Node) : Int32
