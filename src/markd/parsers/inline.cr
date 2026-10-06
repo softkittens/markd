@@ -358,14 +358,11 @@ module Markd::Parser
       end
 
       if closer
-        openers_bottom = {
-          '_'  => delimiter,
-          '*'  => delimiter,
-          '\'' => delimiter,
-          '"'  => delimiter,
-        } of Char => Delimiter?
-
-        openers_bottom['~'] = delimiter if @options.gfm?
+        # Below which no opener for a kind of closer is left, once one
+        # closer of that kind found none: by its character and, for `*` and
+        # `_`, whether it can open and its length modulo 3, which decide the
+        # openers it may take, as commonmark.js keeps them.
+        openers_bottom = {} of {Char, Bool, Int32} => Delimiter?
 
         # move forward, looking for closers, and handling each
         while closer
@@ -377,9 +374,11 @@ module Markd::Parser
           end
 
           # found emphasis closer. now look back for first matching opener:
+          bottom_key = closer_char.in?('*', '_') ? {closer_char, closer.can_open?, closer.orig_delims % 3} : {closer_char, false, 0}
+          bottom = openers_bottom.fetch(bottom_key, delimiter)
           opener = closer.previous?
           opener_found = false
-          while opener && opener != delimiter && opener != openers_bottom[closer_char]
+          while opener && opener != delimiter && opener != bottom
             odd_match = (closer.can_open? || opener.can_close?) &&
                         closer.orig_delims % 3 != 0 &&
                         (opener.orig_delims + closer.orig_delims) % 3 == 0
@@ -469,8 +468,8 @@ module Markd::Parser
             closer = closer.next?
           end
 
-          if !opener && !odd_match
-            openers_bottom[closer_char] = old_closer.previous?
+          unless opener_found
+            openers_bottom[bottom_key] = old_closer.previous?
             remove_delimiter(old_closer) if !old_closer.can_open?
           end
         end
