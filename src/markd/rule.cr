@@ -100,7 +100,9 @@ module Markd
 
     GFM_DISALLOWED_HTML_TAGS = %w[title textarea style xmp iframe noembed noframes script plaintext]
 
-    TABLE_HEADING_SEPARATOR = /^(\|?\s*:{0,1}-:{0,1}+\s*)+(\||\s*)$/
+    # Possessive: spaces between cells could belong to either, and trying
+    # each split went past PCRE2's match limit on a long row, which raised.
+    TABLE_HEADING_SEPARATOR = /^(?>\|?\s*+:?-:?+\s*+)++(?:\||\s*)$/
     TABLE_CELL_SEPARATOR    = /(?<!\\)\|/
 
     ADMONITION_START = /^> \[!((?:NOTE|TIP|IMPORTANT|CAUTION|WARNING)+)](\s*.*)?$/

@@ -293,3 +293,14 @@ Blocks in containers on lines that are not ASCII.
 </tbody>
 </table>
 ````````````````````````````````
+
+A long row that is not a delimiter row ends a table's header, and reading
+it does not raise.
+
+```````````````````````````````` example gfm
+|a|b|
+|- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - x
+.
+<p>|a|b|
+|- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - x</p>
+````````````````````````````````
