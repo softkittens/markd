@@ -202,3 +202,11 @@ x www.a.com/x) www.a.com/x) y, see http://a.com/(b)) ok, *www.a.com/c* and ćao 
 .
 <p>x <a href="http://www.a.com/x">www.a.com/x</a>) <a href="http://www.a.com/x">www.a.com/x</a>) y, see <a href="http://a.com/(b)">http://a.com/(b)</a>) ok, <em><a href="http://www.a.com/c">www.a.com/c</a></em> and ćao <a href="mailto:a.b@c.com">a.b@c.com</a>.</p>
 ````````````````````````````````
+
+A destination holds at most 32 nested parentheses, as cmark reads it.
+
+```````````````````````````````` example
+[a](((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))) [b]((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))
+.
+<p><a href="((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))">a</a> [b]((((((((((((((((((((((((((((((((((x))))))))))))))))))))))))))))))))))</p>
+````````````````````````````````

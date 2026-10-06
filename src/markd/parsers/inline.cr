@@ -686,6 +686,10 @@ module Markd::Parser
                  when '('
                    @pos += 1
                    open_parens += 1
+                   # cmark reads at most 32 nested parentheses, as the
+                   # spec allows; past them the text is not a link. A
+                   # limit keeps each `](` from reading to the end.
+                   return if open_parens > 32
                  when ')'
                    break if open_parens < 1
 
